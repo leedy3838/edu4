@@ -1,8 +1,3 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
 name: Publish Docker Github Package
 
 on:
@@ -16,12 +11,13 @@ jobs:
     permissions:
       packages: write
       contents: read
+
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3
 
       - name: Log in to the Container registry
-        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+        uses: docker/login-action@v2
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -29,25 +25,24 @@ jobs:
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
-        uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
+        uses: docker/metadata-action@v4
         with:
           images: ghcr.io/${{ github.repository }}
-          tags: ${{ github.event.release.tag_name }}
+          tags: |
+            type=semver,pattern={{version}}
 
       - name: Build and push Docker images
-        uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
+        uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-      - name: Install Trivy (macOS)
-        if: runner.os == 'macOS'
+      - name: Install Trivy on macOS
         run: |
           brew install aquasecurity/trivy/trivy
 
-      - name: Scan Docker image with Trivy (macOS)
-        if: runner.os == 'macOS'
+      - name: Scan Docker image with Trivy
         run: |
-          trivy image --severity CRITICAL,HIGH --format table --exit-code 0 ghcr.io/${{ github.repository }}:${{ github.event.release.tag_name }}
+          trivy image --severity CRITICAL,HIGH --format table --exit-code 0 ghcr.io/${{ github.repository }}:$(echo "${{ steps.meta.outputs.tags }}" | cut -d ':' -f2)
