@@ -11,7 +11,7 @@ on:
 
 jobs:
   push_to_registries:
-    name: Push Docker image to multiple registries
+    name: Push Docker image to GHCR and scan with Trivy
     runs-on: [self-hosted, macOS]
     permissions:
       packages: write
@@ -26,14 +26,14 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
         with:
           images: ghcr.io/${{ github.repository }}
-          tags: ${{ github.event.inputs.name }}
-      
+          tags: ${{ github.event.release.tag_name }}
+
       - name: Build and push Docker images
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
@@ -42,11 +42,12 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-      - name: Scan Docker image with Trivy
-        uses: aquasecurity/trivy-action@0.16.1
-        with:
-          image-ref: ${{ steps.meta.outputs.tags }}
-          format: table
-          exit-code: 0
-          severity: CRITICAL,HIGH
+      - name: Install Trivy (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install aquasecurity/trivy/trivy
 
+      - name: Scan Docker image with Trivy (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          trivy image --severity CRITICAL,HIGH --format table --exit-code 0 ghcr.io/${{ github.repository }}:${{ github.event.release.tag_name }}
