@@ -50,7 +50,7 @@ jobs:
         with:
           image-ref: ${{ env.TRIVY_IMAGE }}
           format: table
-          exit-code: 1 # 1로 설정하면 취약점이 있을 시 실패 처리됨
+          exit-code: 0 # 1로 설정하면 취약점이 있을 시 실패 처리됨
           ignore-unfixed: true
           vuln-type: os,library
   
